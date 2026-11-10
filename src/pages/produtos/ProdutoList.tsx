@@ -1,10 +1,14 @@
 
 import { Link } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import api, { type Produto } from "../../services/api";
+import { Eye, Pencil, Trash2 } from "lucide-react";
  
  export function ProdutoList() {
     
+    const queryClient = useQueryClient();
+
+
   // useQuery: busca, cacheia e revalida os dados da API.
   // queryKey identifica a consulta no cache; queryFn executa a requisição.
   const { data, isPending, isError, error } = useQuery({
@@ -14,7 +18,29 @@ import api, { type Produto } from "../../services/api";
       return resposta.data;
     },
   });
-  
+
+      // Mutation para a operação DELETE
+  const deleteMutation = useMutation({
+    mutationFn: async (id: number) => {
+      await api.delete(`/produtos/${id}`);
+    },
+    onSuccess: () => {
+      // Invalida a consulta: a lista é atualizada automaticamente,
+      // sem precisar recarregar a página.
+      queryClient.invalidateQueries({ queryKey: ["produtos"] });
+    },
+    onError: (erro) => {
+      alert(`Erro ao remover o produto: ${erro.message}`);
+    },
+  });
+ 
+  // Função chamada pelo botão Remover, com confirmação do usuário
+  function handleDelete(produto: Produto) {
+    if (window.confirm(`Deseja realmente remover o produto "${produto.descricao}"?`)) {
+      deleteMutation.mutate(produto.id);
+    }
+  }
+
     if (isPending) return <p className="p-4">Carregando produtos...</p>;
     if (isError) return <p className="p-4 text-red-600">Erro: {error.message}</p>;
  
@@ -49,19 +75,27 @@ import api, { type Produto } from "../../services/api";
               <td className="p-2 border">{produto.quantidade}</td>
               <td className="p-2 border">R${produto.valor.toFixed(2)}</td>
               <td className="p-2 border">
+                <div className="flex items-center gap-4">
                 <Link
                   to={`/produtos/${produto.id}`}
                   className="text-blue-600 hover:underline mr-2"
                 >
-                  Detalhes
+                   <Eye size={20} />
                 </Link>
                 <Link
                   to={`/produtos/editar/${produto.id}`}
                   className="text-yellow-600 hover:underline mr-2"
                 >
-                  Editar
+                  <Pencil size={20} />
                 </Link>
-                {/* O botão Remover será implementado na Etapa 7 */}
+                <button
+                onClick={() => handleDelete(produto)}
+                disabled={deleteMutation.isPending}
+                className="text-red-600 hover:underline disabled:opacity-50"
+              >
+                <Trash2 size={20} />
+              </button>
+              </div>
               </td>
             </tr>
           ))}
